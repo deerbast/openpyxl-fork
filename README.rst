@@ -2,6 +2,15 @@
     :target: https://coveralls.io/bitbucket/openpyxl/openpyxl?branch=default
     :alt: coverage status
 
+
+This is a temporary fork of https://foss.heptapod.net/openpyxl/openpyxl that 
+corrects the issue https://foss.heptapod.net/openpyxl/openpyxl/-/issues/2279 
+that has been encountered in the TeamBridge application when using images in 
+the spreadsheet file. Install using::
+    
+    pip install git+https://github.com/deerbast/openpyxl-fork.git@fix-openpyxl-issue
+
+
 Introduction
 ------------
 

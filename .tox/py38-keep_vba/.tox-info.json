@@ -1,0 +1,6 @@
+{
+  "ToxEnv": {
+    "name": "py38-keep_vba",
+    "type": "VirtualEnvRunner"
+  }
+}

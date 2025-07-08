@@ -28,7 +28,7 @@ class Image:
     def __init__(self, img):
 
         self.ref = img
-        mark_to_close = isinstance(img, str)
+        self.mark_to_close = isinstance(img, str)
         image = _import_image(img)
         self.width, self.height = image.size
 
@@ -36,7 +36,7 @@ class Image:
             self.format = image.format.lower()
         except AttributeError:
             self.format = "png"
-        if mark_to_close:
+        if self.mark_to_close:
             # PIL instances created for metadata should be closed.
             image.close()
 
@@ -50,6 +50,8 @@ class Image:
         if self.format in ['gif', 'jpeg', 'png']:
             img.fp.seek(0)
             data = img.fp.read()
+            if self.mark_to_close:
+                img.close()
         else:
             fp = BytesIO()
             img.save(fp, format="png")

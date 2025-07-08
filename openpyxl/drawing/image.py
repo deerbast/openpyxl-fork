@@ -4,18 +4,9 @@ from io import BytesIO
 
 try:
     from PIL import Image as PILImage
+    PILImageOk = True
 except ImportError:
-    PILImage = False
-
-
-def _import_image(img):
-    if not PILImage:
-        raise ImportError('You must install Pillow to fetch image objects')
-
-    if not isinstance(img, PILImage.Image):
-        img = PILImage.open(img)
-
-    return img
+    PILImageOk = False
 
 
 class Image:
@@ -24,44 +15,66 @@ class Image:
     _id = 1
     _path = "/xl/media/image{0}.{1}"
     anchor = "A1"
+    format = "PNG"
 
-    def __init__(self, img):
+    # Also know as Alt Text, but the xml tag refers to 'descr'
+    desc = None
+
+    def __init__(self, img: str | PILImage.Image | BytesIO, desc = None):
+        """
+        Load the given image in memory.
+        """
+        assert PILImageOk
 
         self.ref = img
-        self.mark_to_close = isinstance(img, str)
-        image = _import_image(img)
-        self.width, self.height = image.size
 
-        try:
-            self.format = image.format.lower()
-        except AttributeError:
-            self.format = "png"
-        if self.mark_to_close:
-            # PIL instances created for metadata should be closed.
-            image.close()
+        if isinstance(img, (str, BytesIO)):
+            img = PILImage.open(img)
+        assert isinstance(img, PILImage.Image)
+
+        self.width, self.height = img.size
+        self.desc = desc
+        
+        self.format = (getattr(img, 'format', None) or '').upper()
+
+        fp = BytesIO()
+        if self.format in ['GIF', 'JPEG', 'PNG', "WMF", "EMF"]:
+            if getattr(img, 'fp', None):
+                try:
+                    # Preserve raw binary
+                    img.fp.seek(0)
+                    fp = BytesIO(img.fp.read())
+                except (AttributeError, ValueError, OSError):
+                    img.save(fp, format=self.format)
+            else:
+                img.save(fp, format=self.format)
+        elif self.format:
+            # Convert to png
+            img.save(fp, format='PNG')
+            self.format = 'PNG'
+            
+        fp.seek(0)
+        self._raw_data = fp.getvalue()
+        fp.close()
+        img.close()
 
 
     def _data(self):
         """
         Return image data, convert to supported types if necessary
         """
-        img = _import_image(self.ref)
-        # don't convert these file formats
-        if self.format in ['gif', 'jpeg', 'png']:
-            img.fp.seek(0)
-            data = img.fp.read()
-            if self.mark_to_close:
-                img.close()
-        else:
-            fp = BytesIO()
-            img.save(fp, format="png")
-            fp.seek(0)
-            data = fp.read()
-            fp.close()
-
-        return data
+        return self._raw_data
 
 
     @property
     def path(self):
-        return self._path.format(self._id, self.format)
+        assert self.format
+        return self._path.format(self._id, self.format.lower())
+
+
+    def __eq__(self, other):
+        return self.ref == other.ref
+
+
+    def _write(self, archive):
+        archive.writestr(self.path[1:], self._data())
